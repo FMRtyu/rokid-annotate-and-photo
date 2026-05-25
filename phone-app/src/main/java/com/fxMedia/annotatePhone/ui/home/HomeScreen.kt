@@ -3,7 +3,6 @@
     import androidx.compose.foundation.Image
     import androidx.compose.foundation.layout.*
     import androidx.compose.foundation.lazy.LazyColumn
-    import androidx.compose.foundation.shape.CircleShape
     import androidx.compose.material.icons.Icons
     import androidx.compose.material.icons.automirrored.filled.ArrowBack
     import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -39,8 +38,9 @@
     import kotlinx.coroutines.flow.MutableStateFlow
     import kotlinx.coroutines.flow.StateFlow
     import java.io.File
-    import androidx.compose.foundation.border
     import androidx.compose.foundation.shape.RoundedCornerShape
+    import androidx.compose.runtime.getValue
+    import androidx.compose.runtime.setValue
 
     /**
      * Redesigned Home Screen with Material Design 3 patterns
@@ -88,52 +88,60 @@
             contentPadding = PaddingValues(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            /*item {
+                Image(
+                    painter = rememberAsyncImagePainter(R.drawable.image_background2),
+                    contentDescription = "Frame Background",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentScale = ContentScale.FillBounds // Penting untuk 9-patch
+                )
+            }*/
             // Welcome header
             item {
                 WelcomeHeader()
             }
 
             // Status overview cards
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Glasses connection status
-                    InfoCard(
-                        icon = when (connectionState) {
-                            ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
-                            ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> Icons.AutoMirrored.Filled.BluetoothSearching
-                            else -> Icons.Default.BluetoothDisabled
-                        },
-                        title = stringResource(R.string.glasses_status),
-                        value = when (connectionState) {
-                            ConnectionState.CONNECTED -> connectedGlassesName ?: stringResource(R.string.connected)
-                            ConnectionState.CONNECTING -> stringResource(R.string.connecting)
-                            ConnectionState.RECONNECTING -> stringResource(R.string.reconnecting)
-                            ConnectionState.ERROR -> stringResource(R.string.connection_error)
-                            else -> stringResource(R.string.disconnected)
-                        },
-                        valueColor = when (connectionState) {
-                            ConnectionState.CONNECTED -> ExtendedTheme.colors.success
-                            ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> MaterialTheme.colorScheme.tertiary
-                            ConnectionState.ERROR -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Current AI model
-    //                InfoCard(
-    //                    icon = Icons.Default.Psychology,
-    //                    title = stringResource(R.string.current_model),
-    //                    value = currentModel?.displayName ?: currentModelId,
-    //                    modifier = Modifier.weight(1f)
-    //                )
-                }
-            }
-
-            // Connection control card
+//            item {
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+//                ) {
+//                    // Glasses connection status
+//                    InfoCard(
+//                        icon = when (connectionState) {
+//                            ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
+//                            ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> Icons.AutoMirrored.Filled.BluetoothSearching
+//                            else -> Icons.Default.BluetoothDisabled
+//                        },
+//                        title = stringResource(R.string.glasses_status),
+//                        value = when (connectionState) {
+//                            ConnectionState.CONNECTED -> connectedGlassesName ?: stringResource(R.string.connected)
+//                            ConnectionState.CONNECTING -> stringResource(R.string.connecting)
+//                            ConnectionState.RECONNECTING -> stringResource(R.string.reconnecting)
+//                            ConnectionState.ERROR -> stringResource(R.string.connection_error)
+//                            else -> stringResource(R.string.disconnected)
+//                        },
+//                        valueColor = when (connectionState) {
+//                            ConnectionState.CONNECTED -> ExtendedTheme.colors.success
+//                            ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> MaterialTheme.colorScheme.tertiary
+//                            ConnectionState.ERROR -> MaterialTheme.colorScheme.error
+//                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+//                        },
+//                        modifier = Modifier.weight(1f)
+//                    )
+//
+//                     Current AI model
+//                    InfoCard(
+//                        icon = Icons.Default.Psychology,
+//                        title = stringResource(R.string.current_model),
+//                        value = currentModel?.displayName ?: currentModelId,
+//                        modifier = Modifier.weight(1f)
+//                    )
+//                }
+//            }
             item {
                 GlassesConnectionCard(
                     connectionState = connectionState,
@@ -142,30 +150,22 @@
                     onDisconnect = onDisconnect
                 )
             }
-
-            // Camera capture card (only when connected)
             item {
-                AnimatedSection(visible = connectionState == ConnectionState.CONNECTED) {
-                    //CameraCaptureCard(onCapturePhoto = onCapturePhoto)
-                    //CapturedPhoto(photoPath = photoPath)
-                }
+                var manualText by remember { mutableStateOf("") }
+                ManualAnnotationCard(
+                    annotationText = manualText,
+                    onAnnotationTextChange = { manualText = it },
+                    onFinish = {
+                        if (manualText.isNotBlank()) {
+                            // 2. Panggil fungsi statis dari PhoneViewModel
+                            PhoneViewModel.updateTranscript(manualText)
+
+                            // 3. Kosongkan textbox setelah berhasil dikirim
+                            manualText = ""
+                        }
+                    }
+                )
             }
-
-            // Recording control card
-    //        item {
-    //            RecordingControlCard(
-    //                recordingState = recordingState,
-    //                isGlassesConnected = connectionState == ConnectionState.CONNECTED,
-    //                onStartPhoneRecording = onStartPhoneRecording,
-    //                onStartGlassesRecording = onStartGlassesRecording,
-    //                onPauseRecording = onPauseRecording,
-    //                onStopRecording = onStopRecording,
-    //                onSend = { text ->
-    //                    updateMessage(text)
-    //                }
-    //            )
-    //        }
-
             // Latest photo (if available)
             item {
                 // Note: In a real implementation, we should use a proper Paging state
@@ -191,6 +191,39 @@
                 )
 
             }
+
+            // Connection control card
+            /*item {
+                GlassesConnectionCard(
+                    connectionState = connectionState,
+                    glassesName = connectedGlassesName,
+                    onConnect = onConnect,
+                    onDisconnect = onDisconnect
+                )
+            }*/
+
+            // Camera capture card (only when connected)
+            item {
+                AnimatedSection(visible = connectionState == ConnectionState.CONNECTED) {
+                    //CameraCaptureCard(onCapturePhoto = onCapturePhoto)
+                    //CapturedPhoto(photoPath = photoPath)
+                }
+            }
+
+            // Recording control card
+    //        item {
+    //            RecordingControlCard(
+    //                recordingState = recordingState,
+    //                isGlassesConnected = connectionState == ConnectionState.CONNECTED,
+    //                onStartPhoneRecording = onStartPhoneRecording,
+    //                onStartGlassesRecording = onStartGlassesRecording,
+    //                onPauseRecording = onPauseRecording,
+    //                onStopRecording = onStopRecording,
+    //                onSend = { text ->
+    //                    updateMessage(text)
+    //                }
+    //            )
+    //        }
 
             // Service control card
     //        item {
@@ -252,57 +285,59 @@
     //        }
 
             // Recent voice conversations section (current session)
-            if (conversations.isNotEmpty()) {
-                item {
-                    SectionHeaderWithAction(
-                        title = stringResource(R.string.home_current_session),
-                        actionLabel = stringResource(R.string.home_view_all),
-                        onAction = onViewConversationHistory
-                    )
-                }
-
-                item {
-                    // Display conversations in a card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            conversations.takeLast(6).forEach { item ->
-                                ConversationBubbleCard(item = item)
-                            }
-                        }
-                    }
-                }
-            }
+//            if (conversations.isNotEmpty()) {
+//                item {
+//                    SectionHeaderWithAction(
+//                        title = stringResource(R.string.home_current_session),
+//                        actionLabel = stringResource(R.string.home_view_all),
+//                        onAction = onViewConversationHistory
+//                    )
+//                }
+//
+//                item {
+//                    // Display conversations in a card
+//                    Card(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        shape = MaterialTheme.shapes.medium,
+//                        colors = CardDefaults.cardColors(
+//                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+//                        )
+//                    ) {
+//                        Column(
+//                            modifier = Modifier.padding(12.dp),
+//                            verticalArrangement = Arrangement.spacedBy(8.dp)
+//                        ) {
+//                            conversations.takeLast(6).forEach { item ->
+//                                ConversationBubbleCard(item = item)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
 
             // App Version Info Card at the very bottom
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 8.dp, bottom = 16.dp), // Tambah bottom padding agar tidak mepet layar
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
+                        shape = RoundedCornerShape(0.dp), // Konsisten kotak
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ),
-                        //shape = MaterialTheme.shapes.small
+                            containerColor = Color(0xFF121F28)
+                        )
                     ) {
                         Text(
                             text = "Version ${BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            color = Color(0xFF6E8C9A),
+                            textAlign = TextAlign.Center, // Teks di tengah
+                            modifier = Modifier
+                                .fillMaxWidth() // Agar textAlign berfungsi
+                                .padding(vertical = 8.dp)
                         )
                     }
                 }
@@ -328,9 +363,9 @@
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = MaterialTheme.shapes.medium,
+            shape = RoundedCornerShape(0.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                containerColor = Color(0xFF121F28)
             )
         ) {
             Column(
@@ -350,7 +385,7 @@
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = Color(0xFF6E8C9A)
                 )
             }
         }
@@ -387,7 +422,6 @@
             }
         }
     }
-
     @Composable
     private fun WelcomeHeader() {
         Column(
@@ -407,9 +441,35 @@
 //                style = MaterialTheme.typography.bodyLarge,
 //                color = MaterialTheme.colorScheme.onSurfaceVariant
 //            )
+//            Image(
+//                painter = painterResource(id = R.drawable.logo),
+//                contentDescription = "Captured photo",
+//                modifier = Modifier.
+//                //width(100.dp),
+//                fillMaxWidth(0.5f),
+//                contentScale = ContentScale.FillWidth
+//            )
+            Text(
+                text = stringResource(R.string.home_welcome),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.home_subtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(10.dp))
             Image(
-                painter = painterResource(id = R.drawable.logo),
+                painter = painterResource(id = R.drawable.lineimage),
                 contentDescription = "Captured photo",
+                modifier = Modifier.
+                fillMaxSize().
+                height(2.dp),
+                contentScale = ContentScale.FillWidth
             )
         }
     }
@@ -427,25 +487,34 @@
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = RoundedCornerShape(0.dp),
             colors = CardDefaults.cardColors(
-                containerColor = when (connectionState) {
-                    ConnectionState.CONNECTED -> ExtendedTheme.colors.successContainer
-                    ConnectionState.CONNECTING, ConnectionState.RECONNECTING ->
-                        MaterialTheme.colorScheme.tertiaryContainer
-                    ConnectionState.ERROR -> MaterialTheme.colorScheme.errorContainer
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-            )
+                containerColor = Color.Transparent)
         ) {
+            Box(modifier = Modifier.fillMaxWidth().height(75.dp)) {
+                //Background Card
+                Image(
+                    painter = painterResource(id = R.drawable.background_card),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize().
+                    padding(start = 5.dp, end = 5.dp), // Agar ukuran gambar sama dengan Card
+                    contentScale = ContentScale.FillBounds
+                )
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                    .fillMaxWidth(),
+                    //padding( vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 1. Garis Vertikal (Kiri Icon)
+                Image(
+                    painter = painterResource(id = R.drawable.line_vertical),
+                    contentDescription = null,
+                    modifier = Modifier.height(75.dp),
+                    contentScale = ContentScale.FillHeight
+                )
                 // Animated icon container
-                Surface(
+                /*Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                     modifier = Modifier.size(56.dp)
@@ -473,11 +542,38 @@
                             )
                         }
                     }
+                }*/
+
+                Box(
+                    modifier = Modifier.padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isConnecting) {
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    } else {
+                        Icon(
+                            imageVector = when (connectionState) {
+                                ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
+                                ConnectionState.ERROR -> Icons.Default.BluetoothDisabled
+                                else -> Icons.AutoMirrored.Filled.BluetoothSearching
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = Color(0xFF88B0C4)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                // 2. Garis Vertikal (Kanan Icon)
+                Image(
+                    painter = painterResource(id = R.drawable.line_vertical),
+                    contentDescription = null,
+                    modifier = Modifier.height(75.dp),
+                    contentScale = ContentScale.FillHeight
+                )
 
-                Column(modifier = Modifier.weight(1f)) {
+                Spacer(modifier = Modifier.width(7.dp))
+/*                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = when (connectionState) {
                             ConnectionState.CONNECTED -> stringResource(R.string.connected)
@@ -513,6 +609,173 @@
                             Text(stringResource(R.string.connect))
                         }
                     }
+                }*/
+                // Section Tengah (Nama & Tombol di bawahnya sesuai gambar)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp, end = 8.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = glassesName ?: stringResource(R.string.disconnected),
+                        style = MaterialTheme.typography.titleMedium,
+                        //fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6E8C9A)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (isConnected) {
+                        Button(
+                            onClick = onDisconnect,
+                            shape = RoundedCornerShape(0.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF88B0C4), // Warna biru muda sesuai gambar
+                                contentColor = Color.Black
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text(stringResource(R.string.disconnect), fontWeight = FontWeight.Bold)
+                        }
+                    } else if (!isConnecting) {
+                        /*Button(onClick = onConnect) {
+                            Text(stringResource(R.string.connect))
+                        }*/
+
+                        Button(
+                            onClick = onConnect,
+                            shape = RoundedCornerShape(0.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF88B0C4), // Warna biru muda sesuai gambar
+                                contentColor = Color.Black
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text(stringResource(R.string.connect), fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
+                    }
+                }
+
+                // --- ICON SIGNAL (Sesuai Referensi) ---
+                Icon(painter = painterResource(id = R.drawable.icon_signal),
+                    contentDescription = null,
+                    tint = Color(0xFF88B0C4),
+                    modifier = Modifier
+                        .align(Alignment.Top) // Menyejajarkan ke atas Row
+                        .padding(top = 4.dp, end = 16.dp) // Sedikit padding agar pas di sudut atas
+                        .size(30.dp) // Ukuran diperbesar sedikit
+                )
+                // 3. Garis Vertikal (Akhir/Paling Kanan)
+                Image(
+                    painter = painterResource(id = R.drawable.line_vertical),
+                    contentDescription = null,
+                    modifier = Modifier.height(75.dp),
+                    contentScale = ContentScale.FillHeight
+                )
+            }
+            }
+        }
+    }
+
+    @Composable
+    private fun ManualAnnotationCard(
+        annotationText: String,
+        onAnnotationTextChange: (String) -> Unit,
+        onFinish: () -> Unit
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(0.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Transparent
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().height(85.dp)) {
+                // Background Card
+                Image(
+                    painter = painterResource(id = R.drawable.textbox_annotation),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize()
+                    .padding(horizontal = 5.dp),
+                    contentScale = ContentScale.FillBounds
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. Garis Vertikal (Kiri)
+                    Image(
+                        painter = painterResource(id = R.drawable.line_vertical),
+                        contentDescription = null,
+                        modifier = Modifier.height(85.dp),
+                        contentScale = ContentScale.FillHeight
+                    )
+
+                    // Section Tengah (Label & TextBox)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Annotation Text",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFF6E8C9A)
+                        )
+
+                        TextField(
+                            value = annotationText,
+                            onValueChange = onAnnotationTextChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color(0xFF88B0C4),
+                                unfocusedIndicatorColor = Color(0xFF6E8C9A).copy(alpha = 0.5f),
+                                cursorColor = Color.White,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            singleLine = true,
+                            placeholder = {
+                                Text(
+                                    "Add here...",
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        )
+                    }
+
+                    // Button Finish (Kotak)
+                    Button(
+                        onClick = onFinish,
+                        shape = RoundedCornerShape(0.dp), // Kotak sesuai permintaan sebelumnya
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF88B0C4),
+                            contentColor = Color.Black
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .height(36.dp)
+                            .padding(end = 8.dp)
+                    ) {
+                        Text("Finish", fontWeight = FontWeight.Bold)
+                    }
+
+                    // 2. Garis Vertikal (Kanan/Akhir)
+                    Image(
+                        painter = painterResource(id = R.drawable.line_vertical),
+                        contentDescription = null,
+                        modifier = Modifier.height(85.dp),
+                        contentScale = ContentScale.FillHeight
+                    )
                 }
             }
         }
@@ -732,24 +995,30 @@
                 .fillMaxWidth()
                 //.height(700.dp),
                 .aspectRatio(imageRatio),
-            shape = MaterialTheme.shapes.large,
+            shape = RoundedCornerShape(0.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color.Black
             )
         ) {
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(MaterialTheme.shapes.large),
                 contentAlignment = Alignment.Center
             ) {
-
+                Image(
+                    painter = painterResource(id = R.drawable.photo_frame),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds
+                )
+                
                 Image(
                     painter = painter,
                     contentDescription = "Captured photo",
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(horizontal = 13.dp, vertical = 1.dp)
                         .layout { measurable, constraints ->
                             // Measure the image with swapped constraints to simulate landscape
                             val placeable = measurable.measure(
@@ -777,14 +1046,17 @@
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = 22.dp, start = 16.dp, end = 16.dp),
+                        .padding(top = 35.dp, start = 16.dp, end = 16.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(0.dp),
                         modifier = Modifier.fillMaxWidth(0.9f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            Color.White.copy(alpha = 0.2f)
+                        )
                     ) {
                         Row(
                             modifier = Modifier
@@ -801,7 +1073,7 @@
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    painter = painterResource(id = R.drawable.icon_arrow_left),
                                     contentDescription = "Previous",
                                     tint = if (canGoPrevious) Color.White else Color.Gray,
                                     // ... rest ...
@@ -838,7 +1110,7 @@
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    painter = painterResource(id = R.drawable.icon_arrow_right),
                                     contentDescription = "Next",
                                     tint = if (canGoNext) Color.White else Color.Gray,
                                     // ... rest ...
@@ -1073,12 +1345,14 @@
         return "%02d:%02d".format(minutes, seconds)
     }
 
-    @Preview(showBackground = true)
+    @Preview(showBackground = true, backgroundColor = 0xFF000000)
     @Composable
-    fun HomeScreenPreview() {
+    fun HomeScreenPreview(
+        modifier: Modifier = Modifier,
+    ) {
         RokidPhoneTheme {
             HomeScreen(
-                connectionState = ConnectionState.CONNECTED,
+                connectionState = ConnectionState.DISCONNECTED,
                 connectedGlassesName = "Rokid Max",
                 isServiceRunning = true,
                 latestPhotoPath = null,
@@ -1104,3 +1378,16 @@
             )
         }
     }
+/*
+    @Preview(showBackground = true, backgroundColor = 0xFF000000)
+    @Composable
+    fun GreetingPreview() {
+        Image(
+            painter = painterResource(R.drawable.photo_frame),
+            contentDescription = "Frame Background",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentScale = ContentScale.FillBounds // Penting untuk 9-patch
+        )
+    }*/

@@ -17,7 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import android.view.KeyEvent
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -199,51 +203,37 @@ fun PhoneMainScreenContent(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    
-    // Check if initial setup is needed when settings are loaded
-    LaunchedEffect(settings) {
-        onCheckInitialSetup(settings.hasAnyApiKeyConfigured())
-    }
-    
-    // Show initial setup dialog when no API key is configured
-    if (uiState.showInitialSetup) {
-        InitialSetupDialog(
-            onGoToSettings = {
-                onDismissInitialSetup()
-                navController.navigate(NavRoutes.SETTINGS)
-            },
-            onDismiss = {
-                onDismissInitialSetup()
-            }
+
+    Box(modifier = Modifier.fillMaxSize()){
+        Image(
+            painter = painterResource(R.drawable.image_background),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.FillBounds
         )
-    }
-    
-    // Show API key warning dialog when triggered by service
-    if (uiState.showApiKeyWarning) {
-        ApiKeyMissingDialog(
-            settings = settings,
-            onGoToSettings = {
-                onDismissApiKeyWarning()
-                navController.navigate(NavRoutes.SETTINGS)
-            },
-            onDismiss = {
-                onDismissApiKeyWarning()
-            }
-        )
-    }
-    
-    Scaffold(
-        topBar = {
-            // Only show top bar on Home screen
-            if (currentDestination?.route == NavRoutes.HOME) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.app_title)) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                // Only show top bar on Home screen
+//            if (currentDestination?.route == NavRoutes.HOME) {
+//                TopAppBar(
+//                    title = { Text(stringResource(R.string.app_title)) },
+//                    colors = TopAppBarDefaults.topAppBarColors(
+//                        containerColor = MaterialTheme.colorScheme.surface
+//                    )
+//                )
+//            }
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "Captured photo",
+                    modifier = Modifier
+                        .
+                        //width(100.dp),
+                        fillMaxWidth(0.5f)
+                        .padding(start = 16.dp, top = 5.dp),
+                    contentScale = ContentScale.FillWidth
                 )
-            }
-        },
+            },
 //        bottomBar = {
 //            NavigationBar(
 //                containerColor = MaterialTheme.colorScheme.surface,
@@ -290,163 +280,212 @@ fun PhoneMainScreenContent(
 //                }
 //            }
 //        }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = NavRoutes.HOME,
-            modifier = Modifier.padding(padding),
-            enterTransition = { fadeIn(animationSpec = tween(300)) },
-            exitTransition = { fadeOut(animationSpec = tween(300)) }
-        ) {
-            composable(NavRoutes.HOME) {
-                HomeScreen(
-                    connectionState = uiState.connectionState,
-                    connectedGlassesName = uiState.connectedGlassesName,
-                    isServiceRunning = uiState.isServiceRunning,
-                    latestPhotoPath = uiState.latestPhotoPath,
-                    processingStatus = uiState.processingStatus,
-                    currentModelId = settings.aiModelId,
-                    conversations = uiState.conversations,
-                    recordingState = uiState.recordingState,
-                    onConnect = onConnect,
-                    onDisconnect = onDisconnect,
-                    onStartService = onStartService,
-                    onStopService = onStopService,
-                    onCapturePhoto = onCapturePhoto,
-                    onStartPhoneRecording = onStartPhoneRecording,
-                    onStartGlassesRecording = onStartGlassesRecording,
-                    onPauseRecording = onPauseRecording,
-                    onStopRecording = onStopRecording,
-                    onViewConversationHistory = { navController.navigate(NavRoutes.CHAT) },
-                    onViewGallery = { navController.navigate(NavRoutes.GALLERY) },
-                    onViewRecordings = { navController.navigate(NavRoutes.RECORDINGS) },
-                    onNextTranscript = onNextTranscript, // Hubungkan ke ViewModel
-                    onPreviousTranscript = onPreviousTranscript,
-                )
-            }
-
-            composable(NavRoutes.RECORDINGS) {
-                com.fxMedia.annotatePhone.ui.recording.RecordingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onRecordingDetail = { recordingId ->
-                        navController.navigate(NavRoutes.recordingDetail(recordingId))
-                    }
-                )
-            }
-
-            composable(
-                route = NavRoutes.RECORDING_DETAIL,
-                arguments = listOf(
-                    androidx.navigation.navArgument("recordingId") {
-                        type = androidx.navigation.NavType.StringType
-                    }
-                )
-            ) { backStackEntry ->
-                val recordingId = backStackEntry.arguments?.getString("recordingId") ?: ""
-                com.fxMedia.annotatePhone.ui.recording.RecordingDetailScreen(
-                    recordingId = recordingId,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(NavRoutes.GALLERY) {
-                // Photo Gallery screen
-                val galleryViewModel: PhotoGalleryViewModel = viewModel()
-                val groupedPhotos by galleryViewModel.groupedPhotos.collectAsState()
-                val photos by galleryViewModel.photos.collectAsState()
-                val photoCount by galleryViewModel.photoCount.collectAsState()
-                val galleryUiState by galleryViewModel.uiState.collectAsState()
-                val context = LocalContext.current
-
-                // Reset detail view when entering gallery tab
-                DisposableEffect(Unit) {
-                    onDispose {
-                        galleryViewModel.closePhotoDetail()
-                        galleryViewModel.clearSelection()
-                    }
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = NavRoutes.HOME,
+                modifier = Modifier.padding(padding),
+                enterTransition = { fadeIn(animationSpec = tween(300)) },
+                exitTransition = { fadeOut(animationSpec = tween(300)) }
+            ) {
+                composable(NavRoutes.HOME) {
+                    HomeScreen(
+                        connectionState = uiState.connectionState,
+                        connectedGlassesName = uiState.connectedGlassesName,
+                        isServiceRunning = uiState.isServiceRunning,
+                        latestPhotoPath = uiState.latestPhotoPath,
+                        processingStatus = uiState.processingStatus,
+                        currentModelId = settings.aiModelId,
+                        conversations = uiState.conversations,
+                        recordingState = uiState.recordingState,
+                        onConnect = onConnect,
+                        onDisconnect = onDisconnect,
+                        onStartService = onStartService,
+                        onStopService = onStopService,
+                        onCapturePhoto = onCapturePhoto,
+                        onStartPhoneRecording = onStartPhoneRecording,
+                        onStartGlassesRecording = onStartGlassesRecording,
+                        onPauseRecording = onPauseRecording,
+                        onStopRecording = onStopRecording,
+                        onViewConversationHistory = { navController.navigate(NavRoutes.CHAT) },
+                        onViewGallery = { navController.navigate(NavRoutes.GALLERY) },
+                        onViewRecordings = { navController.navigate(NavRoutes.RECORDINGS) },
+                        onNextTranscript = onNextTranscript, // Hubungkan ke ViewModel
+                        onPreviousTranscript = onPreviousTranscript,
+                    )
                 }
 
-                // Show detail view if a photo is selected
-                val currentDetailPhoto = galleryUiState.currentDetailPhoto
-                if (currentDetailPhoto != null) {
-                    PhotoDetailScreen(
-                        photos = photos,
-                        initialPhoto = currentDetailPhoto,
-                        onBack = { galleryViewModel.closePhotoDetail() },
-                        onDelete = { galleryViewModel.deletePhoto(it) },
-                        onShare = { photo ->
-                            galleryViewModel.sharePhoto(photo) { intent ->
-                                context.startActivity(intent)
-                            }
-                        },
-                        loadBitmap = { photoData, maxSize ->
-                            galleryViewModel.loadBitmap(photoData, maxSize)
-                        }
-                    )
-                } else {
-                    PhotoGalleryScreen(
-                        groupedPhotos = groupedPhotos,
-                        photoCount = photoCount,
-                        uiState = galleryUiState,
-                        onPhotoClick = { galleryViewModel.openPhotoDetail(it) },
-                        onPhotoLongClick = { galleryViewModel.togglePhotoSelection(it.id) },
-                        onToggleSelection = { galleryViewModel.togglePhotoSelection(it) },
-                        onSelectAll = { galleryViewModel.selectAll() },
-                        onClearSelection = { galleryViewModel.clearSelection() },
-                        onDeleteSelected = { galleryViewModel.showDeleteConfirmDialog() },
-                        onShareSelected = {
-                            galleryViewModel.shareSelectedPhotos { intent ->
-                                context.startActivity(intent)
-                            }
-                        },
-                        onClearAll = { galleryViewModel.showClearAllDialog() },
+                composable(NavRoutes.RECORDINGS) {
+                    com.fxMedia.annotatePhone.ui.recording.RecordingsScreen(
                         onBack = { navController.popBackStack() },
-                        loadBitmap = { photoData, maxSize ->
-                            galleryViewModel.loadBitmap(photoData, maxSize)
+                        onRecordingDetail = { recordingId ->
+                            navController.navigate(NavRoutes.recordingDetail(recordingId))
                         }
                     )
                 }
 
-                // Delete confirmation dialog
-                if (galleryUiState.showDeleteConfirmDialog) {
-                    DeleteConfirmDialog(
-                        count = galleryUiState.selectedPhotos.size,
-                        onConfirm = { galleryViewModel.deleteSelectedPhotos() },
-                        onDismiss = { galleryViewModel.hideDeleteConfirmDialog() }
+                composable(
+                    route = NavRoutes.RECORDING_DETAIL,
+                    arguments = listOf(
+                        androidx.navigation.navArgument("recordingId") {
+                            type = androidx.navigation.NavType.StringType
+                        }
+                    )
+                ) { backStackEntry ->
+                    val recordingId = backStackEntry.arguments?.getString("recordingId") ?: ""
+                    com.fxMedia.annotatePhone.ui.recording.RecordingDetailScreen(
+                        recordingId = recordingId,
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
-                // Clear all confirmation dialog
-                if (galleryUiState.showClearAllDialog) {
-                    ClearAllConfirmDialog(
-                        onConfirm = { galleryViewModel.clearAllPhotos() },
-                        onDismiss = { galleryViewModel.hideClearAllDialog() }
-                    )
-                }
-            }
+                composable(NavRoutes.GALLERY) {
+                    // Photo Gallery screen
+                    val galleryViewModel: PhotoGalleryViewModel = viewModel()
+                    val groupedPhotos by galleryViewModel.groupedPhotos.collectAsState()
+                    val photos by galleryViewModel.photos.collectAsState()
+                    val photoCount by galleryViewModel.photoCount.collectAsState()
+                    val galleryUiState by galleryViewModel.uiState.collectAsState()
+                    val context = LocalContext.current
 
-            composable(NavRoutes.CHAT) {
-                // Full Chat screen with conversation management
-                val conversationViewModel: ConversationViewModel = viewModel()
-                val conversations by conversationViewModel.conversations.collectAsState()
-                val currentConversationId by conversationViewModel.currentConversationId.collectAsState()
-                val currentMessages by conversationViewModel.currentMessages.collectAsState()
-                val currentConversation by conversationViewModel.currentConversation.collectAsState()
-                val chatUiState by conversationViewModel.uiState.collectAsState()
-                val inputText by conversationViewModel.inputText.collectAsState()
-                val context = LocalContext.current
+                    // Reset detail view when entering gallery tab
+                    DisposableEffect(Unit) {
+                        onDispose {
+                            galleryViewModel.closePhotoDetail()
+                            galleryViewModel.clearSelection()
+                        }
+                    }
 
-                // Reset conversation state when leaving chat tab
-                DisposableEffect(Unit) {
-                    onDispose {
-                        conversationViewModel.closeCurrentConversation()
+                    // Show detail view if a photo is selected
+                    val currentDetailPhoto = galleryUiState.currentDetailPhoto
+                    if (currentDetailPhoto != null) {
+                        PhotoDetailScreen(
+                            photos = photos,
+                            initialPhoto = currentDetailPhoto,
+                            onBack = { galleryViewModel.closePhotoDetail() },
+                            onDelete = { galleryViewModel.deletePhoto(it) },
+                            onShare = { photo ->
+                                galleryViewModel.sharePhoto(photo) { intent ->
+                                    context.startActivity(intent)
+                                }
+                            },
+                            loadBitmap = { photoData, maxSize ->
+                                galleryViewModel.loadBitmap(photoData, maxSize)
+                            }
+                        )
+                    } else {
+                        PhotoGalleryScreen(
+                            groupedPhotos = groupedPhotos,
+                            photoCount = photoCount,
+                            uiState = galleryUiState,
+                            onPhotoClick = { galleryViewModel.openPhotoDetail(it) },
+                            onPhotoLongClick = { galleryViewModel.togglePhotoSelection(it.id) },
+                            onToggleSelection = { galleryViewModel.togglePhotoSelection(it) },
+                            onSelectAll = { galleryViewModel.selectAll() },
+                            onClearSelection = { galleryViewModel.clearSelection() },
+                            onDeleteSelected = { galleryViewModel.showDeleteConfirmDialog() },
+                            onShareSelected = {
+                                galleryViewModel.shareSelectedPhotos { intent ->
+                                    context.startActivity(intent)
+                                }
+                            },
+                            onClearAll = { galleryViewModel.showClearAllDialog() },
+                            onBack = { navController.popBackStack() },
+                            loadBitmap = { photoData, maxSize ->
+                                galleryViewModel.loadBitmap(photoData, maxSize)
+                            }
+                        )
+                    }
+
+                    // Delete confirmation dialog
+                    if (galleryUiState.showDeleteConfirmDialog) {
+                        DeleteConfirmDialog(
+                            count = galleryUiState.selectedPhotos.size,
+                            onConfirm = { galleryViewModel.deleteSelectedPhotos() },
+                            onDismiss = { galleryViewModel.hideDeleteConfirmDialog() }
+                        )
+                    }
+
+                    // Clear all confirmation dialog
+                    if (galleryUiState.showClearAllDialog) {
+                        ClearAllConfirmDialog(
+                            onConfirm = { galleryViewModel.clearAllPhotos() },
+                            onDismiss = { galleryViewModel.hideClearAllDialog() }
+                        )
                     }
                 }
 
-                if (currentConversationId != null) {
-                    // Show chat screen
+                composable(NavRoutes.CHAT) {
+                    // Full Chat screen with conversation management
+                    val conversationViewModel: ConversationViewModel = viewModel()
+                    val conversations by conversationViewModel.conversations.collectAsState()
+                    val currentConversationId by conversationViewModel.currentConversationId.collectAsState()
+                    val currentMessages by conversationViewModel.currentMessages.collectAsState()
+                    val currentConversation by conversationViewModel.currentConversation.collectAsState()
+                    val chatUiState by conversationViewModel.uiState.collectAsState()
+                    val inputText by conversationViewModel.inputText.collectAsState()
+                    val context = LocalContext.current
+
+                    // Reset conversation state when leaving chat tab
+                    DisposableEffect(Unit) {
+                        onDispose {
+                            conversationViewModel.closeCurrentConversation()
+                        }
+                    }
+
+                    if (currentConversationId != null) {
+                        // Show chat screen
+                        ChatScreen(
+                            conversationTitle = currentConversation?.title ?: stringResource(R.string.new_conversation),
+                            messages = currentMessages,
+                            isLoading = chatUiState.isLoading,
+                            error = chatUiState.error,
+                            inputText = inputText,
+                            onInputChange = { conversationViewModel.updateInputText(it) },
+                            onSendMessage = { conversationViewModel.sendMessage() },
+                            onClearError = { conversationViewModel.clearError() },
+                            onBack = { conversationViewModel.closeCurrentConversation() },
+                            onClearHistory = { conversationViewModel.clearCurrentConversation() },
+                            onExport = {
+                                conversationViewModel.exportCurrentConversation { intent ->
+                                    context.startActivity(intent)
+                                }
+                            }
+                        )
+                    } else {
+                        // Show conversation history
+                        ConversationHistoryScreen(
+                            conversations = conversations,
+                            onConversationClick = { conversationViewModel.selectConversation(it) },
+                            onNewConversation = { conversationViewModel.createNewConversation() },
+                            onDeleteConversation = { conversationViewModel.deleteConversation(it) },
+                            onArchiveConversation = { conversationViewModel.archiveConversation(it) },
+                            onPinConversation = { conversationViewModel.pinConversation(it) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+
+                composable(
+                    route = NavRoutes.CONVERSATION_DETAIL,
+                    arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val conversationId = backStackEntry.arguments?.getString("conversationId") ?: return@composable
+                    val conversationViewModel: ConversationViewModel = viewModel()
+                    val context = LocalContext.current
+
+                    // Select the conversation
+                    LaunchedEffect(conversationId) {
+                        conversationViewModel.selectConversation(conversationId)
+                    }
+
+                    val currentMessages by conversationViewModel.currentMessages.collectAsState()
+                    val currentConversation by conversationViewModel.currentConversation.collectAsState()
+                    val chatUiState by conversationViewModel.uiState.collectAsState()
+                    val inputText by conversationViewModel.inputText.collectAsState()
+
                     ChatScreen(
-                        conversationTitle = currentConversation?.title ?: stringResource(R.string.new_conversation),
+                        conversationTitle = currentConversation?.title ?: "",
                         messages = currentMessages,
                         isLoading = chatUiState.isLoading,
                         error = chatUiState.error,
@@ -454,7 +493,7 @@ fun PhoneMainScreenContent(
                         onInputChange = { conversationViewModel.updateInputText(it) },
                         onSendMessage = { conversationViewModel.sendMessage() },
                         onClearError = { conversationViewModel.clearError() },
-                        onBack = { conversationViewModel.closeCurrentConversation() },
+                        onBack = { navController.popBackStack() },
                         onClearHistory = { conversationViewModel.clearCurrentConversation() },
                         onExport = {
                             conversationViewModel.exportCurrentConversation { intent ->
@@ -462,90 +501,74 @@ fun PhoneMainScreenContent(
                             }
                         }
                     )
-                } else {
-                    // Show conversation history
-                    ConversationHistoryScreen(
-                        conversations = conversations,
-                        onConversationClick = { conversationViewModel.selectConversation(it) },
-                        onNewConversation = { conversationViewModel.createNewConversation() },
-                        onDeleteConversation = { conversationViewModel.deleteConversation(it) },
-                        onArchiveConversation = { conversationViewModel.archiveConversation(it) },
-                        onPinConversation = { conversationViewModel.pinConversation(it) },
+                }
+
+                composable(NavRoutes.SETTINGS) {
+                    SettingsScreen(
+                        settings = settings,
+                        onSettingsChange = onSettingsChange,
+                        onBack = { navController.popBackStack() },
+                        onNavigateToLogViewer = { navController.navigate(NavRoutes.LOG_VIEWER) },
+                        onNavigateToLlmParameters = { navController.navigate(NavRoutes.LLM_PARAMETERS) },
+                        onNavigateToTtsSettings = { navController.navigate(NavRoutes.TTS_SETTINGS) }
+                    )
+                }
+
+                composable(NavRoutes.LLM_PARAMETERS) {
+                    LlmParametersScreen(
+                        settings = settings,
+                        onSettingsChange = onSettingsChange,
                         onBack = { navController.popBackStack() }
                     )
                 }
-            }
 
-            composable(
-                route = NavRoutes.CONVERSATION_DETAIL,
-                arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val conversationId = backStackEntry.arguments?.getString("conversationId") ?: return@composable
-                val conversationViewModel: ConversationViewModel = viewModel()
-                val context = LocalContext.current
-
-                // Select the conversation
-                LaunchedEffect(conversationId) {
-                    conversationViewModel.selectConversation(conversationId)
+                composable(NavRoutes.TTS_SETTINGS) {
+                    TtsSettingsScreen(
+                        settings = settings,
+                        onSettingsChange = onSettingsChange,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
 
-                val currentMessages by conversationViewModel.currentMessages.collectAsState()
-                val currentConversation by conversationViewModel.currentConversation.collectAsState()
-                val chatUiState by conversationViewModel.uiState.collectAsState()
-                val inputText by conversationViewModel.inputText.collectAsState()
-
-                ChatScreen(
-                    conversationTitle = currentConversation?.title ?: "",
-                    messages = currentMessages,
-                    isLoading = chatUiState.isLoading,
-                    error = chatUiState.error,
-                    inputText = inputText,
-                    onInputChange = { conversationViewModel.updateInputText(it) },
-                    onSendMessage = { conversationViewModel.sendMessage() },
-                    onClearError = { conversationViewModel.clearError() },
-                    onBack = { navController.popBackStack() },
-                    onClearHistory = { conversationViewModel.clearCurrentConversation() },
-                    onExport = {
-                        conversationViewModel.exportCurrentConversation { intent ->
-                            context.startActivity(intent)
-                        }
-                    }
-                )
-            }
-
-            composable(NavRoutes.SETTINGS) {
-                SettingsScreen(
-                    settings = settings,
-                    onSettingsChange = onSettingsChange,
-                    onBack = { navController.popBackStack() },
-                    onNavigateToLogViewer = { navController.navigate(NavRoutes.LOG_VIEWER) },
-                    onNavigateToLlmParameters = { navController.navigate(NavRoutes.LLM_PARAMETERS) },
-                    onNavigateToTtsSettings = { navController.navigate(NavRoutes.TTS_SETTINGS) }
-                )
-            }
-
-            composable(NavRoutes.LLM_PARAMETERS) {
-                LlmParametersScreen(
-                    settings = settings,
-                    onSettingsChange = onSettingsChange,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(NavRoutes.TTS_SETTINGS) {
-                TtsSettingsScreen(
-                    settings = settings,
-                    onSettingsChange = onSettingsChange,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(NavRoutes.LOG_VIEWER) {
-                LogViewerScreen(
-                    onNavigateBack = { navController.popBackStack() }
-                )
+                composable(NavRoutes.LOG_VIEWER) {
+                    LogViewerScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
+    }
+
+    // Check if initial setup is needed when settings are loaded
+    LaunchedEffect(settings) {
+        onCheckInitialSetup(settings.hasAnyApiKeyConfigured())
+    }
+
+    // Show initial setup dialog when no API key is configured
+    if (uiState.showInitialSetup) {
+        InitialSetupDialog(
+            onGoToSettings = {
+                onDismissInitialSetup()
+                navController.navigate(NavRoutes.SETTINGS)
+            },
+            onDismiss = {
+                onDismissInitialSetup()
+            }
+        )
+    }
+
+    // Show API key warning dialog when triggered by service
+    if (uiState.showApiKeyWarning) {
+        ApiKeyMissingDialog(
+            settings = settings,
+            onGoToSettings = {
+                onDismissApiKeyWarning()
+                navController.navigate(NavRoutes.SETTINGS)
+            },
+            onDismiss = {
+                onDismissApiKeyWarning()
+            }
+        )
     }
 }
 

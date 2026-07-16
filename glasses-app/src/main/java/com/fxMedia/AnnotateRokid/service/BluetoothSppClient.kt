@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.fxMedia.rokidcommon.protocol.Message
 import com.fxMedia.rokidcommon.protocol.MessageType
+import com.fxMedia.rokidcommon.Constants
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.json.JSONObject
@@ -41,8 +42,8 @@ class BluetoothSppClient(
     companion object {
         private const val TAG = "BluetoothSppClient"
         
-        // Same UUID as phone-side
-        val SERVICE_UUID: UUID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        // Use UUID from shared constants for consistency
+        val SERVICE_UUID: UUID = Constants.BT_SERVICE_UUID
         
         // Message delimiter
         private const val MESSAGE_DELIMITER = "\n"
@@ -61,11 +62,11 @@ class BluetoothSppClient(
     private var readJob: Job? = null
     private var heartbeatJob: Job? = null
     
-    // Heartbeat interval (10 seconds)
-    private val HEARTBEAT_INTERVAL = 10_000L
+    // Heartbeat interval (5 seconds)
+    private val HEARTBEAT_INTERVAL = Constants.HEARTBEAT_INTERVAL_MS
     
     // Maximum missed heartbeats before triggering reconnection
-    private val MAX_MISSED_HEARTBEATS = 3
+    private val MAX_MISSED_HEARTBEATS = Constants.MAX_RECONNECT_ATTEMPTS
     
     // Counter for heartbeats sent without receiving ACK
     @Volatile

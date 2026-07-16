@@ -17,15 +17,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import android.view.KeyEvent
+import androidx.activity.result.launch
 import androidx.compose.foundation.Image
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -57,6 +61,8 @@ import com.fxMedia.annotatePhone.viewmodel.ConversationViewModel
 import com.fxMedia.annotatePhone.viewmodel.PhotoGalleryViewModel
 import com.fxMedia.annotatePhone.viewmodel.PhoneUiState
 import com.fxMedia.annotatePhone.viewmodel.PhoneViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private var testIndex = 1
@@ -129,18 +135,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        // Inisialisasi viewModel
+        val viewModel = androidx.lifecycle.ViewModelProvider(this)[PhoneViewModel::class.java]
+
         return when (keyCode) {
-            KeyEvent.KEYCODE_ENTER -> {
-                val holdMs = (event?.eventTime ?: 0L) - (event?.downTime ?: 0L)
-                // if not long press
-                if (holdMs < 500L) {
-                    PhoneViewModel.updateTranscript("this is the transcript 07 test add no.${testIndex++}, this should be verrrrryyyyyyyy loooooooooonnnnggggggg text")
+            // Tombol 'I' -> Simulasi: Ambil Foto -> Tunggu -> Ikat Transkrip
+            KeyEvent.KEYCODE_I -> {
+                android.util.Log.d("TestFlow", "Simulating photo capture...")
+                viewModel.addSamplePhoto() // Gunakan defaultphoto.png
+
+                lifecycleScope.launch {
+                    delay(1000) // Jeda 1 detik agar foto selesai disimpan
+                    val currentPath = PhoneViewModel.uiState.value.latestPhotoPath
+                    if (currentPath != null) {
+                        // Ini akan memicu newTranscriptEvent yang sudah kita pasang di ViewModel
+                        //PhoneViewModel.updateTranscript("Transcript for photo ${System.currentTimeMillis()}")
+                        android.util.Log.d("TestFlow", "Binding triggered for: $currentPath")
+                    }
                 }
                 true
             }
+
+            // Tombol 'O' -> Hapus semua (Foto & JSON Central)
+            KeyEvent.KEYCODE_O -> {
+                android.util.Log.d("TestFlow", "Cleaning all history...")
+                viewModel.clearPhotoHistory()
+                viewModel.clearTranscriptHistory()
+                true
+            }
+
             else -> super.onKeyUp(keyCode, event)
         }
     }
+
 }
 
 
@@ -175,7 +202,8 @@ fun PhoneMainScreen(
         onCheckInitialSetup = { viewModel.checkInitialSetup(it) },
         onSettingsChange = { settingsRepository.saveSettings(it) },
         onNextTranscript = { viewModel.nextTranscript() },
-        onPreviousTranscript = { viewModel.previousTranscript() }
+        onPreviousTranscript = { viewModel.previousTranscript() },
+        onRefresh = { viewModel.refreshPhotos() }
     )
 }
 
@@ -198,21 +226,17 @@ fun PhoneMainScreenContent(
     onCheckInitialSetup: (Boolean) -> Unit,
     onSettingsChange: (ApiSettings) -> Unit,
     onNextTranscript: () -> Unit = {},
-    onPreviousTranscript: () -> Unit = {}
+    onPreviousTranscript: () -> Unit = {},
+    onRefresh: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     Box(modifier = Modifier.fillMaxSize()){
-        Image(
-            painter = painterResource(R.drawable.image_background),
-            contentDescription = null,
-            modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.FillBounds
-        )
         Scaffold(
-            containerColor = Color.Transparent,
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Black,
             topBar = {
                 // Only show top bar on Home screen
 //            if (currentDestination?.route == NavRoutes.HOME) {
@@ -223,16 +247,28 @@ fun PhoneMainScreenContent(
 //                    )
 //                )
 //            }
-                Image(
-                    painter = painterResource(id = R.drawable.logo),
-                    contentDescription = "Captured photo",
+                Row(
                     modifier = Modifier
-                        .
-                        //width(100.dp),
-                        fillMaxWidth(0.5f)
-                        .padding(start = 16.dp, top = 5.dp),
-                    contentScale = ContentScale.FillWidth
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ROKID ANNOTATE",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Image(
+                        painter = painterResource(id = R.drawable.title_accent),
+                        contentDescription = null,
+                        modifier = Modifier.height(20.dp), // Sesuaikan tinggi agar sejajar teks
+                        contentScale = ContentScale.FillHeight
+                    )
+                }
             },
 //        bottomBar = {
 //            NavigationBar(
@@ -312,6 +348,7 @@ fun PhoneMainScreenContent(
                         onViewRecordings = { navController.navigate(NavRoutes.RECORDINGS) },
                         onNextTranscript = onNextTranscript, // Hubungkan ke ViewModel
                         onPreviousTranscript = onPreviousTranscript,
+                        onRefresh = onRefresh
                     )
                 }
 
@@ -368,6 +405,9 @@ fun PhoneMainScreenContent(
                                 galleryViewModel.sharePhoto(photo) { intent ->
                                     context.startActivity(intent)
                                 }
+                            },
+                            onAddAnnotation = { photo, annotation ->
+                                galleryViewModel.addAnnotation(photo, annotation)
                             },
                             loadBitmap = { photoData, maxSize ->
                                 galleryViewModel.loadBitmap(photoData, maxSize)

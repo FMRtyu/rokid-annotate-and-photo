@@ -200,7 +200,8 @@ class ImageAnalysisViewModel(
                         Log.d(TAG, "Analysis success: ${result.description.take(100)}")
                         
                         // Update photoData analysis result
-                        photoData.analysisResult = result.description
+                        photoData.analysisResults = listOf(result.description)
+                        photoRepository.saveAnalysisResult(photoData, result.description)
                         
                         _uiState.update {
                             it.copy(
@@ -281,7 +282,7 @@ class ImageAnalysisViewModel(
                                         height = bitmap.height,
                                         sizeBytes = 0,
                                         transferTimeMs = 0,
-                                        analysisResult = result.description
+                                        analysisResults = listOf(result.description)
                                     ),
                                     description = result.description,
                                     analysisTimeMs = analysisTime

@@ -5,11 +5,13 @@ import android.graphics.BitmapFactory
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -20,15 +22,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fxMedia.annotatePhone.R
 import com.fxMedia.annotatePhone.service.photo.PhotoData
 import com.fxMedia.annotatePhone.ui.theme.RokidPhoneTheme
@@ -46,6 +54,7 @@ fun PhotoDetailScreen(
     onBack: () -> Unit,
     onDelete: (PhotoData) -> Unit,
     onShare: (PhotoData) -> Unit,
+    onAddAnnotation: (PhotoData, String) -> Unit,
     loadBitmap: suspend (PhotoData, Int?) -> Bitmap?,
     modifier: Modifier = Modifier
 ) {
@@ -55,6 +64,13 @@ fun PhotoDetailScreen(
     var showInfo by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
+    var manualText by remember { mutableStateOf("") }
+    var currentAnnotationIndex by remember(pagerState.currentPage) { mutableIntStateOf(0) }
+    
+    // Reset annotation text when swiping to a different photo
+    LaunchedEffect(pagerState.currentPage) {
+        manualText = ""
+    }
     
     Box(
         modifier = modifier
@@ -76,6 +92,113 @@ fun PhotoDetailScreen(
             }
         }
         
+        // Existing Annotations Overlay (Top)
+        AnimatedVisibility(
+            visible = showControls && currentPhoto.analysisResults.isNotEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 100.dp)
+                .padding(horizontal = 16.dp)
+        ) {
+            val annotations = currentPhoto.analysisResults
+            val canGoPrevious = currentAnnotationIndex > 0
+            val canGoNext = currentAnnotationIndex < annotations.size - 1
+            
+            Surface(
+                color = Color.Black.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier.fillMaxWidth(0.9f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color.White.copy(alpha = 0.2f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = { if (canGoPrevious) currentAnnotationIndex-- },
+                        enabled = canGoPrevious,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                id = if (canGoPrevious) R.drawable.l_arrow_default else R.drawable.l_arrow_inactive
+                            ),
+                            contentDescription = "Previous",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = annotations.getOrNull(currentAnnotationIndex) ?: "",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = TextAlign.Center,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (annotations.size > 1) {
+                            Text(
+                                text = "${currentAnnotationIndex + 1} / ${annotations.size}",
+                                color = Color.White.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { if (canGoNext) currentAnnotationIndex++ },
+                        enabled = canGoNext,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                id = if (canGoNext) R.drawable.r_arrow_default else R.drawable.r_arrow_inactive
+                            ),
+                            contentDescription = "Next",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+
+        // Manual Annotation Card Overlay (Bottom)
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 120.dp)
+                .padding(horizontal = 16.dp)
+        ) {
+            ManualAnnotationCard(
+                annotationText = manualText,
+                onAnnotationTextChange = { manualText = it },
+                onFinish = {
+                    if (manualText.isNotBlank()) {
+                        onAddAnnotation(currentPhoto, manualText)
+                        manualText = ""
+                        // Optionally update index to show the new one
+                    }
+                }
+            )
+        }
+
         // Top bar with controls
         AnimatedVisibility(
             visible = showControls,
@@ -249,6 +372,85 @@ fun PhotoDetailScreen(
 }
 
 @Composable
+private fun ManualAnnotationCard(
+    annotationText: String,
+    onAnnotationTextChange: (String) -> Unit,
+    onFinish: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp) // Smaller height
+            .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Background Utama
+        Image(
+            painter = painterResource(id = R.drawable.annotate_container),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 8.dp), // Less padding
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Area Input
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(30.dp) // Smaller input box
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .border(1.dp, Color.Gray.copy(alpha = 0.5f))
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (annotationText.isEmpty()) {
+                    Text(
+                        text = "Add Annotation here...",
+                        style = MaterialTheme.typography.bodySmall, // Smaller text
+                        color = Color.Gray
+                    )
+                }
+                
+                BasicTextField(
+                    value = annotationText,
+                    onValueChange = onAnnotationTextChange,
+                    textStyle = TextStyle(
+                        color = Color.White,
+                        fontSize = 12.sp // Smaller font size
+                    ),
+                    cursorBrush = SolidColor(Color.White),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Tombol FINISH
+            Button(
+                onClick = onFinish,
+                shape = RoundedCornerShape(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF5D8233),
+                    contentColor = Color.White
+                ),
+                modifier = Modifier.height(30.dp), // Smaller button
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = "FINISH",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ZoomablePhoto(
     photoData: PhotoData,
     loadBitmap: suspend (PhotoData, Int?) -> Bitmap?,
@@ -283,16 +485,33 @@ private fun ZoomablePhoto(
                 )
             }
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    if (scale > 1f) {
-                        offset = Offset(
-                            x = (offset.x + pan.x).coerceIn(-500f * (scale - 1), 500f * (scale - 1)),
-                            y = (offset.y + pan.y).coerceIn(-500f * (scale - 1), 500f * (scale - 1))
-                        )
-                    } else {
-                        offset = Offset.Zero
-                    }
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val zoomChange = event.calculateZoom()
+                        val panChange = event.calculatePan()
+
+                        if (scale > 1f || zoomChange != 1f) {
+                            // Consume only if zoomed in or zooming
+                            event.changes.forEach {
+                                if (it.positionChanged()) {
+                                    it.consume()
+                                }
+                            }
+
+                            scale = (scale * zoomChange).coerceIn(1f, 5f)
+                            
+                            if (scale > 1f) {
+                                offset = Offset(
+                                    x = (offset.x + panChange.x).coerceIn(-500f * (scale - 1), 500f * (scale - 1)),
+                                    y = (offset.y + panChange.y).coerceIn(-500f * (scale - 1), 500f * (scale - 1))
+                                )
+                            } else {
+                                offset = Offset.Zero
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             },
         contentAlignment = Alignment.Center
@@ -315,7 +534,7 @@ private fun ZoomablePhoto(
                             scaleY = scale
                             translationX = offset.x
                             translationY = offset.y
-                            rotationZ = 90f
+                            rotationZ = -90f
                         },
                     contentScale = ContentScale.Fit
                 )
@@ -375,18 +594,33 @@ private fun PhotoInfoDialog(
                         value = "${photoData.transferTimeMs}ms"
                     )
                 }
-                if (photoData.analysisResult != null) {
+                if (photoData.analysisResults != null) {
                     HorizontalDivider()
                     Text(
                         text = stringResource(R.string.gallery_info_analysis),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = photoData.analysisResult!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+//                    Text(
+//                        text = photoData.analysisResults.firstOrNull() ?: "no annotate yet",
+//                        style = MaterialTheme.typography.bodySmall,
+//                        color = MaterialTheme.colorScheme.onSurfaceVariant
+//                    )
+                    if (photoData.analysisResults.isEmpty()) {
+                        Text(
+                            text = "no annotate yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        photoData.analysisResults.forEachIndexed { index, result ->
+                            Text(
+                                text = "${index + 1}. $result",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -433,7 +667,7 @@ fun PhotoDetailScreenPreview() {
             height = 1080,
             sizeBytes = 1024 * 500,
             transferTimeMs = 100,
-            analysisResult = "A sample image analysis result showing what's in the photo."
+            analysisResults = listOf("A sample image analysis result showing what's in the photo.")
         ),
         PhotoData(
             id = "2",
@@ -454,8 +688,9 @@ fun PhotoDetailScreenPreview() {
                 onBack = {},
                 onDelete = {},
                 onShare = {},
+                onAddAnnotation = { _, _ -> },
                 loadBitmap = { _, _ -> 
-                    BitmapFactory.decodeResource(context.resources, R.drawable.defaultphoto_3)
+                    BitmapFactory.decodeResource(context.resources, R.drawable.defaultphoto_2)
                 }
             )
         }

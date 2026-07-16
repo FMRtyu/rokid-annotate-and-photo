@@ -697,7 +697,7 @@ class PhoneAIService : Service() {
             Log.d(TAG, "Photo analysis result: $cleanedResult")
             
             // Update photo data with analysis result
-            photoData.analysisResult = cleanedResult
+            photoData.analysisResults = listOf(cleanedResult)
             
             // Send result to glasses
             bluetoothManager?.sendMessage(Message(

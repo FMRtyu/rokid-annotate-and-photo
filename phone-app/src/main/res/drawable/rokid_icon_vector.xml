@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Glasses frame (black oval) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M20,50c0,-12 68,-12 68,0v8c0,12 -68,12 -68,0z" />
+
+    <!-- Left lens (blue oval) -->
+    <path
+        android:fillColor="#64B5F6"
+        android:pathData="M24,52c0,-6 26,-6 26,0v4c0,6 -26,6 -26,0z" />
+
+    <!-- Right lens (blue rectangle) -->
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M58,52h26v10h-26z" />
+
+    <!-- Annotation blocks inside right lens -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,54h8v4h-8z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,54h8v4h-8z" />
+</vector>

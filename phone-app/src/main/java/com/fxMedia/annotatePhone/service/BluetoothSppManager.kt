@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.fxMedia.rokidcommon.Constants
 import com.fxMedia.rokidcommon.protocol.Message
 import com.fxMedia.rokidcommon.protocol.MessageType
 import com.fxMedia.rokidcommon.protocol.photo.PhotoTransferConstants
@@ -55,8 +56,8 @@ class BluetoothSppManager(
         private const val SERVICE_NAME = "RokidAIAssistant"
         // SPP UUID
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-        // Custom UUID (to identify our application)
-        private val APP_UUID: UUID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        // Use UUID from shared constants for consistency
+        private val APP_UUID: UUID = Constants.BT_SERVICE_UUID
         
         private const val BUFFER_SIZE = 8192
         

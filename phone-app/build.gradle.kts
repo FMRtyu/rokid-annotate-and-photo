@@ -36,16 +36,20 @@ android {
         applicationId = "com.fxMedia.annotatePhone"
         minSdk = 28
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.0.11"
+        versionCode = 15
+        versionName = "0.0.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // API Keys - Read from local.properties, do not hardcode.
         val geminiKey = localProps.getProperty("GEMINI_API_KEY", "")
         val openaiKey = localProps.getProperty("OPENAI_API_KEY", "")
+        val elevenlabsKey = localProps.getProperty("ELEVENLABS_API_KEY", "")
+        val rokidSecret = localProps.getProperty("ROKID_CLIENT_SECRET", "")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
         buildConfigField("String", "OPENAI_API_KEY", "\"$openaiKey\"")
+        buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenlabsKey\"")
+        buildConfigField("String", "ROKID_CLIENT_SECRET", "\"$rokidSecret\"")
     }
 
     signingConfigs {
@@ -84,9 +88,7 @@ android {
         buildConfig = true
     }
     
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
-    }
+    // composeOptions is no longer needed when using the Kotlin Compose Compiler Plugin
     
     // 16KB page alignment for Android 15+ compatibility
     packaging {

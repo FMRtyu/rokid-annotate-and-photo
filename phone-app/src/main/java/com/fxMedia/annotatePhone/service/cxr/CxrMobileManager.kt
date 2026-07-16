@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.util.Log
+import com.fxMedia.annotatePhone.BuildConfig
 import com.rokid.cxr.client.extend.CxrApi
 import com.rokid.cxr.client.extend.callbacks.*
 import com.rokid.cxr.client.extend.listeners.AiEventListener
@@ -253,14 +254,15 @@ class CxrMobileManager(private val context: Context) {
                 // Step 3: Wait for SDK internals to settle after deinit.
                 delay(DEINIT_SETTLE_DELAY_MS)
 
-                // Step 4: Now init with the callback.
+                // Step 4: Mark the callback as registered BEFORE calling initBluetooth,
+                // so we don't miss immediate callbacks like onConnectionInfo.
+                isCallbackRegistered = true
+
+                // Step 5: Now init with the callback.
                 Log.d(TAG, "Initializing Bluetooth with device: ${device.name}")
                 cxrApi.initBluetooth(context, device, bluetoothCallback)
-
-                // Step 5: Only NOW mark the callback as registered, so subsequent
-                // SDK callbacks (onConnectionInfo, onConnected, etc.) are processed.
-                isCallbackRegistered = true
-                Log.d(TAG, "Bluetooth callback registered")
+                
+                Log.d(TAG, "Bluetooth callback registered and init called")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to init Bluetooth", e)
@@ -276,8 +278,14 @@ class CxrMobileManager(private val context: Context) {
     private fun connectBluetooth(context: Context, socketUuid: String, macAddress: String) {
         try {
             Log.d(TAG, "Connecting Bluetooth: uuid=$socketUuid, mac=$macAddress")
+            // Use ROKID_CLIENT_SECRET from BuildConfig for authentication
+            // Hyphens are removed and string is converted to ByteArray as required by the Rokid SDK
+            val secretKey = BuildConfig.ROKID_CLIENT_SECRET.takeIf { it.isNotBlank() }
+                ?.replace("-", "")
+                ?.toByteArray()
+            
             // connectBluetooth parameters: context, socketUuid, macAddress, callback, secretKey, identifier
-            cxrApi.connectBluetooth(context, socketUuid, macAddress, bluetoothCallback, null, null)
+            cxrApi.connectBluetooth(context, socketUuid, macAddress, bluetoothCallback, secretKey, null)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect Bluetooth", e)
             _bluetoothState.value = BluetoothState.Failed(e.message ?: "Connection error")

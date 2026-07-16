@@ -335,7 +335,7 @@
     <string name="gallery_info_dimensions">Dimensions</string>
     <string name="gallery_info_size">File Size</string>
     <string name="gallery_info_transfer_time">Transfer Time</string>
-    <string name="gallery_info_analysis">AI Analysis</string>
+    <string name="gallery_info_analysis">Annotate Texts</string>
     <string name="gallery_load_error">Unable to load photo</string>
     <string name="share">Share</string>
     <string name="close">Close</string>

@@ -83,6 +83,16 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Force refresh the photo history and transcripts from disk.
+     * Useful when returning from other screens that might have modified data.
+     */
+    fun refreshPhotos() {
+        Log.d(TAG, "Refreshing photos and transcripts from disk")
+        _uiState.update { it.copy(currentTranscriptIndex = 0) }
+        photoRepository.refresh()
+    }
+
     // Instance getters for UI binding
     val uiState: StateFlow<PhoneUiState> = PhoneViewModel.uiState
 
@@ -205,8 +215,14 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
         // Listen to latest photo path for display
         viewModelScope.launch {
             ServiceBridge.latestPhotoPathFlow.collect { path ->
-                Log.d(TAG, "Received latest photo path: $path")
-                _uiState.update { it.copy(latestPhotoPath = path) }
+                Log.d(TAG, "New photo received, clearing old transcripts: $path")
+                _uiState.update {
+                    it.copy(
+                        latestPhotoPath = path,
+                        transcripts = emptyList(), // BERSIHKAN TRANSKRIP FOTO LAMA
+                        currentTranscriptIndex = 0
+                    )
+                }
             }
         }
 
@@ -238,8 +254,15 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             photoRepository.photoHistory.collect { history ->
                 if (history.isNotEmpty()) {
-                    val lastPath = history.first().filePath
-                    _uiState.update { it.copy(latestPhotoPath = lastPath) }
+                    val photo = history.first()
+                    // Sinkronkan list transkrip UI agar HANYA berisi milik foto ini
+                    _uiState.update {
+                        it.copy(
+                            latestPhotoPath = photo.filePath,
+                            transcripts = photo.analysisResults, // LOAD HANYA MILIK FOTO B
+                            currentTranscriptIndex = if (photo.filePath != it.latestPhotoPath) 0 else it.currentTranscriptIndex
+                        )
+                    }
                 }
             }
         }
@@ -258,9 +281,25 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+//        viewModelScope.launch {
+//            newTranscriptEvent.collect {
+//                saveTranscripts() // Simpan seluruh list terbaru
+//            }
+//        }
+
         viewModelScope.launch {
-            newTranscriptEvent.collect {
-                saveTranscripts() // Simpan seluruh list terbaru
+            newTranscriptEvent.collect { transcript ->
+                val latestPath = uiState.value.latestPhotoPath
+                if (latestPath != null) {
+                    // Cari objek PhotoData yang cocok dengan path foto saat ini di history
+                    val photoData = photoRepository.photoHistory.value.find { it.filePath == latestPath }
+
+                    photoData?.let {
+                        Log.d(TAG, "Binding transcript to photo ID: ${it.id}")
+                        // Panggil fungsi rolling per-ID di Repository
+                        photoRepository.saveAnalysisResult(it, transcript)
+                    }
+                }
             }
         }
 

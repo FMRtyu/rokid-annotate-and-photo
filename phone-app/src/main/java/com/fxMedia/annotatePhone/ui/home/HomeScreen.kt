@@ -1,6 +1,8 @@
     package com.fxMedia.annotatePhone.ui.home
 
     import androidx.compose.foundation.Image
+    import androidx.compose.foundation.background
+    import androidx.compose.foundation.border
     import androidx.compose.foundation.layout.*
     import androidx.compose.foundation.lazy.LazyColumn
     import androidx.compose.material.icons.Icons
@@ -39,8 +41,16 @@
     import kotlinx.coroutines.flow.StateFlow
     import java.io.File
     import androidx.compose.foundation.shape.RoundedCornerShape
+    import androidx.compose.foundation.text.BasicTextField
     import androidx.compose.runtime.getValue
     import androidx.compose.runtime.setValue
+    import androidx.compose.ui.graphics.SolidColor
+    import androidx.compose.ui.graphics.vector.rememberVectorPainter
+    import androidx.compose.ui.text.TextStyle
+    import androidx.compose.ui.unit.sp
+    import androidx.lifecycle.Lifecycle
+    import androidx.lifecycle.LifecycleEventObserver
+    import androidx.compose.ui.platform.LocalLifecycleOwner
 
     /**
      * Redesigned Home Screen with Material Design 3 patterns
@@ -77,8 +87,21 @@
         onViewRecordings: () -> Unit = {},
         onNextTranscript: () -> Unit = {},
         onPreviousTranscript: () -> Unit = {},
+        onRefresh: () -> Unit = {},
         modifier: Modifier = Modifier
     ) {
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    onRefresh()
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
         val currentModel = AvailableModels.findModel(currentModelId)
         val transcriptGroup by PhoneViewModel.uiState.collectAsState() // This is a List<String> from update
         LazyColumn(
@@ -250,7 +273,7 @@
 
                     // Gallery quick access
                     QuickAccessCard(
-                        icon = Icons.Default.PhotoLibrary,
+                        icon = painterResource(id =R.drawable.gallery_icon),
                         title = stringResource(R.string.nav_gallery),
                         onClick = onViewGallery,
                         modifier = Modifier.weight(1f)
@@ -324,21 +347,29 @@
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(35.dp),
                         shape = RoundedCornerShape(0.dp), // Konsisten kotak
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF121F28)
+                            containerColor = Color.Transparent
                         )
                     ) {
-                        Text(
-                            text = "Version ${BuildConfig.VERSION_NAME}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6E8C9A),
-                            textAlign = TextAlign.Center, // Teks di tengah
-                            modifier = Modifier
-                                .fillMaxWidth() // Agar textAlign berfungsi
-                                .padding(vertical = 8.dp)
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Image(
+                                painter = painterResource(id = R.drawable.gallery_container),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.FillBounds
+                            )
+                            Text(
+                                text = "Version ${BuildConfig.VERSION_NAME}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                textAlign = TextAlign.Center, // Teks di tengah
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.Center)
+                            )
+                        }
                     }
                 }
             }
@@ -355,38 +386,46 @@
 
     @Composable
     private fun QuickAccessCard(
-        icon: ImageVector,
+        icon: androidx.compose.ui.graphics.painter.Painter,
         title: String,
         onClick: () -> Unit,
         modifier: Modifier = Modifier
     ) {
         Card(
             onClick = onClick,
-            modifier = modifier,
+            modifier = modifier.height(85.dp),
             shape = RoundedCornerShape(0.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF121F28)
+                containerColor = Color.Transparent
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = icon,
+            Box(modifier = Modifier.fillMaxSize()) {
+                Image(
+                    painter = painterResource(id = R.drawable.gallery_container),
                     contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF6E8C9A)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -451,7 +490,7 @@
 //            )
             Text(
                 text = stringResource(R.string.home_welcome),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
@@ -459,16 +498,16 @@
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.home_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
             )
             Spacer(modifier = Modifier.height(10.dp))
             Image(
-                painter = painterResource(id = R.drawable.lineimage),
+                painter = painterResource(id = R.drawable.line_seperator),
                 contentDescription = "Captured photo",
-                modifier = Modifier.
-                fillMaxSize().
-                height(2.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .height(2.dp),
                 contentScale = ContentScale.FillWidth
             )
         }
@@ -488,194 +527,125 @@
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(0.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent)
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
             Box(modifier = Modifier.fillMaxWidth().height(75.dp)) {
-                //Background Card
-                Image(
-                    painter = painterResource(id = R.drawable.background_card),
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize().
-                    padding(start = 5.dp, end = 5.dp), // Agar ukuran gambar sama dengan Card
-                    contentScale = ContentScale.FillBounds
-                )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                    //padding( vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 1. Garis Vertikal (Kiri Icon)
-                Image(
-                    painter = painterResource(id = R.drawable.line_vertical),
-                    contentDescription = null,
-                    modifier = Modifier.height(75.dp),
-                    contentScale = ContentScale.FillHeight
-                )
-                // Animated icon container
-                /*Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                    modifier = Modifier.size(56.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    // Left Vertical Separator
+                    Image(
+                        painter = painterResource(id = R.drawable.line_seperator_wifi),
+                        contentDescription = null,
+                        modifier = Modifier.height(75.dp),
+                        contentScale = ContentScale.FillHeight
+                    )
+
+                    // --- BLUETOOTH SECTION ---
+                    Box(
+                        modifier = Modifier.padding(horizontal = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bluetooth_container),
+                            contentDescription = null,
+                            modifier = Modifier.size(75.dp, 75.dp),
+                            contentScale = ContentScale.FillBounds
+                        )
+
                         if (isConnecting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(28.dp),
-                                strokeWidth = 3.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFFB5FF7D))
                         } else {
                             Icon(
-                                imageVector = when (connectionState) {
-                                    ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
-                                    ConnectionState.ERROR -> Icons.Default.BluetoothDisabled
-                                    else -> Icons.AutoMirrored.Filled.BluetoothSearching
-                                },
+                                painter = painterResource(id = R.drawable.bluetooth_icon),
                                 contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                tint = when (connectionState) {
-                                    ConnectionState.CONNECTED -> ExtendedTheme.colors.success
-                                    ConnectionState.ERROR -> MaterialTheme.colorScheme.error
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                }
+                                modifier = Modifier.size(36.dp),
+                                tint = Color(0xFFB5FF7D)
                             )
                         }
                     }
-                }*/
 
-                Box(
-                    modifier = Modifier.padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isConnecting) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                    } else {
-                        Icon(
-                            imageVector = when (connectionState) {
-                                ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
-                                ConnectionState.ERROR -> Icons.Default.BluetoothDisabled
-                                else -> Icons.AutoMirrored.Filled.BluetoothSearching
-                            },
+                    // Middle Vertical Separator
+                    Image(
+                        painter = painterResource(id = R.drawable.line_seperator_wifi),
+                        contentDescription = null,
+                        modifier = Modifier.height(75.dp),
+                        contentScale = ContentScale.FillHeight
+                    )
+
+                    // --- MAIN INFO SECTION ---
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(75.dp)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.wifi_container),
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = Color(0xFF88B0C4)
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.FillBounds
                         )
-                    }
-                }
 
-                // 2. Garis Vertikal (Kanan Icon)
-                Image(
-                    painter = painterResource(id = R.drawable.line_vertical),
-                    contentDescription = null,
-                    modifier = Modifier.height(75.dp),
-                    contentScale = ContentScale.FillHeight
-                )
-
-                Spacer(modifier = Modifier.width(7.dp))
-/*                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = when (connectionState) {
-                            ConnectionState.CONNECTED -> stringResource(R.string.connected)
-                            ConnectionState.CONNECTING -> stringResource(R.string.connecting)
-                            ConnectionState.RECONNECTING -> stringResource(R.string.reconnecting)
-                            ConnectionState.ERROR -> stringResource(R.string.connection_error)
-                            else -> stringResource(R.string.disconnected)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    if (!glassesName.isNullOrBlank()) {
-                        Text(
-                            text = glassesName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                when {
-                    isConnected -> {
-                        FilledTonalButton(onClick = onDisconnect) {
-                            Text(stringResource(R.string.disconnect))
-                        }
-                    }
-                    isConnecting -> {
-                        // Show nothing, circular indicator is shown in icon
-                    }
-                    else -> {
-                        Button(onClick = onConnect) {
-                            Text(stringResource(R.string.connect))
-                        }
-                    }
-                }*/
-                // Section Tengah (Nama & Tombol di bawahnya sesuai gambar)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp, end = 8.dp),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = glassesName ?: stringResource(R.string.disconnected),
-                        style = MaterialTheme.typography.titleMedium,
-                        //fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6E8C9A)
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    if (isConnected) {
-                        Button(
-                            onClick = onDisconnect,
-                            shape = RoundedCornerShape(0.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF88B0C4), // Warna biru muda sesuai gambar
-                                contentColor = Color.Black
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            modifier = Modifier.height(36.dp)
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(stringResource(R.string.disconnect), fontWeight = FontWeight.Bold)
-                        }
-                    } else if (!isConnecting) {
-                        /*Button(onClick = onConnect) {
-                            Text(stringResource(R.string.connect))
-                        }*/
+                            Icon(
+                                painter = painterResource(id = R.drawable.icon_signal),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
 
-                        Button(
-                            onClick = onConnect,
-                            shape = RoundedCornerShape(0.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF88B0C4), // Warna biru muda sesuai gambar
-                                contentColor = Color.Black
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            modifier = Modifier.height(36.dp)
-                        ) {
-                            Text(stringResource(R.string.connect), fontWeight = FontWeight.Bold, color = Color.Black)
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Text(
+                                text = (glassesName ?: stringResource(R.string.disconnected)).uppercase(),
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Button(
+                                onClick = if (isConnected) onDisconnect else onConnect,
+                                shape = RoundedCornerShape(0.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF5D8233),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Text(
+                                    text = if (isConnected) "DISCONNECT" else "CONNECT",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
+                                )
+                            }
                         }
                     }
-                }
 
-                // --- ICON SIGNAL (Sesuai Referensi) ---
-                Icon(painter = painterResource(id = R.drawable.icon_signal),
-                    contentDescription = null,
-                    tint = Color(0xFF88B0C4),
-                    modifier = Modifier
-                        .align(Alignment.Top) // Menyejajarkan ke atas Row
-                        .padding(top = 4.dp, end = 16.dp) // Sedikit padding agar pas di sudut atas
-                        .size(30.dp) // Ukuran diperbesar sedikit
-                )
-                // 3. Garis Vertikal (Akhir/Paling Kanan)
-                Image(
-                    painter = painterResource(id = R.drawable.line_vertical),
-                    contentDescription = null,
-                    modifier = Modifier.height(75.dp),
-                    contentScale = ContentScale.FillHeight
-                )
-            }
+                    // Right Vertical Separator
+                    Image(
+                        painter = painterResource(id = R.drawable.line_seperator_wifi),
+                        contentDescription = null,
+                        modifier = Modifier.height(75.dp),
+                        contentScale = ContentScale.FillHeight
+                    )
+                }
             }
         }
     }
@@ -686,99 +656,121 @@
         onAnnotationTextChange: (String) -> Unit,
         onFinish: () -> Unit
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(0.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp), // Sesuaikan tinggi agar proporsional dengan gambar
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.fillMaxWidth().height(85.dp)) {
-                // Background Card
+            // 1. Garis Vertikal Kiri
+            Image(
+                painter = painterResource(id = R.drawable.line_seperator_anonate),
+                contentDescription = null,
+                modifier = Modifier.fillMaxHeight(),
+                contentScale = ContentScale.FillHeight
+            )
+
+            // 2. Kontainer Utama Annotation
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background Utama
                 Image(
-                    painter = painterResource(id = R.drawable.textbox_annotation),
+                    painter = painterResource(id = R.drawable.annotate_container),
                     contentDescription = null,
-                    modifier = Modifier.matchParentSize()
-                    .padding(horizontal = 5.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // 1. Garis Vertikal (Kiri)
-                    Image(
-                        painter = painterResource(id = R.drawable.line_vertical),
-                        contentDescription = null,
-                        modifier = Modifier.height(85.dp),
-                        contentScale = ContentScale.FillHeight
+                    Text(
+                        text = "Annotation Text",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
 
-                    // Section Tengah (Label & TextBox)
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Annotation Text",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF6E8C9A)
-                        )
-
-                        TextField(
-                            value = annotationText,
-                            onValueChange = onAnnotationTextChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color(0xFF88B0C4),
-                                unfocusedIndicatorColor = Color(0xFF6E8C9A).copy(alpha = 0.5f),
-                                cursorColor = Color.White,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
-                            textStyle = MaterialTheme.typography.bodyMedium,
-                            singleLine = true,
-                            placeholder = {
+                        // Area Input
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(35.dp)
+                                .background(Color.Black.copy(alpha = 0.3f))
+                                .border(1.dp, Color.Gray.copy(alpha = 0.5f))
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (annotationText.isEmpty()) {
                                 Text(
-                                    "Add here...",
-                                    color = Color.Gray,
-                                    style = MaterialTheme.typography.bodySmall
+                                    text = "Add here...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Gray
                                 )
                             }
-                        )
-                    }
+                            
+                            BasicTextField(
+                                value = annotationText,
+                                onValueChange = onAnnotationTextChange,
+                                textStyle = TextStyle(
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                ),
+                                cursorBrush = SolidColor(Color.White),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
-                    // Button Finish (Kotak)
-                    Button(
-                        onClick = onFinish,
-                        shape = RoundedCornerShape(0.dp), // Kotak sesuai permintaan sebelumnya
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF88B0C4),
-                            contentColor = Color.Black
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .padding(end = 8.dp)
-                    ) {
-                        Text("Finish", fontWeight = FontWeight.Bold)
+                        // Tombol FINISH
+                        Button(
+                            onClick = onFinish,
+                            shape = RoundedCornerShape(0.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF5D8233), // Hijau Neon/Gelap sesuai tema
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.height(35.dp)
+                        ) {
+                            Text(
+                                text = "FINISH",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-
-                    // 2. Garis Vertikal (Kanan/Akhir)
-                    Image(
-                        painter = painterResource(id = R.drawable.line_vertical),
-                        contentDescription = null,
-                        modifier = Modifier.height(85.dp),
-                        contentScale = ContentScale.FillHeight
-                    )
                 }
             }
+
+            // 3. Garis Vertikal Kanan
+            Image(
+                painter = painterResource(id = R.drawable.line_seperator_anonate),
+                contentDescription = null,
+                modifier = Modifier.fillMaxHeight(),
+                contentScale = ContentScale.FillHeight
+            )
         }
+        Spacer(modifier = Modifier.height(14.dp))
+        Image(
+            painter = painterResource(id = R.drawable.line_seperator),
+            contentDescription = "Captured photo",
+            modifier = Modifier
+                .fillMaxSize()
+                .height(2.dp),
+            contentScale = ContentScale.FillWidth
+        )
+
     }
 
     @Composable
@@ -1002,17 +994,17 @@
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clip(MaterialTheme.shapes.large),
+                    .fillMaxSize(),
+                    //.clip(MaterialTheme.shapes.large),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.photo_frame),
+                    painter = painterResource(id = R.drawable.frame_without_bg),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds
                 )
-                
+
                 Image(
                     painter = painter,
                     contentDescription = "Captured photo",
@@ -1034,8 +1026,8 @@
                                     x = (constraints.maxWidth - placeable.width) / 2,
                                     y = (constraints.maxHeight - placeable.height) / 2
                                 ) {
-                                    rotationZ = 90f
-                                    scaleX = -1f
+                                    rotationZ = -90f
+                                    //scaleX = -1f
                                 }
                             }
                         },
@@ -1067,22 +1059,24 @@
                         ) {
                             // Left Arrow
                             // Previous button (disabled at position 0)
-                            IconButton(
-                                onClick = onPrevious,
-                                enabled = canGoPrevious,  // Only true if currentIndex > 0
+                            IconButton(onClick = onPrevious,
+                                enabled = canGoPrevious,
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.icon_arrow_left),
+                                Image(
+                                    painter = painterResource(
+                                        id = if (canGoPrevious) R.drawable.l_arrow_default else R.drawable.l_arrow_inactive
+                                    ),
                                     contentDescription = "Previous",
-                                    tint = if (canGoPrevious) Color.White else Color.Gray,
-                                    // ... rest ...
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
 
                             // Text content and counter
                             Column(
-                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
@@ -1106,14 +1100,15 @@
                             // Next button (disabled at last position)
                             IconButton(
                                 onClick = onNext,
-                                enabled = canGoNext,  // Only true if currentIndex < totalCount - 1
+                                enabled = canGoNext,
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.icon_arrow_right),
+                                Image(
+                                    painter = painterResource(
+                                        id = if (canGoNext) R.drawable.r_arrow_default else R.drawable.r_arrow_inactive
+                                    ),
                                     contentDescription = "Next",
-                                    tint = if (canGoNext) Color.White else Color.Gray,
-                                    // ... rest ...
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }

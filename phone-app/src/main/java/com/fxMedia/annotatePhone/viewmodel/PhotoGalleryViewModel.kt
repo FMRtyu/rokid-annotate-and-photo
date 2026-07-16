@@ -282,6 +282,15 @@ class PhotoGalleryViewModel(application: Application) : AndroidViewModel(applica
     }
     
     /**
+     * Add annotation to a photo
+     */
+    fun addAnnotation(photoData: PhotoData, annotation: String) {
+        viewModelScope.launch {
+            photoRepository.saveAnalysisResult(photoData, annotation)
+        }
+    }
+
+    /**
      * Get photo count
      */
     val photoCount: StateFlow<Int> = photos

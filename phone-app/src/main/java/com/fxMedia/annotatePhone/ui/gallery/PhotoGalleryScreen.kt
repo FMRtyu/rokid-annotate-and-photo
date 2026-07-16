@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -226,6 +227,7 @@ fun PhotoGalleryScreen(
                             },
                             onLongClick = { onPhotoLongClick(photo) },
                             loadBitmap = loadBitmap
+
                         )
                     }
                 }
@@ -297,7 +299,7 @@ private fun PhotoGridItem(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         when {
             isLoading -> {
@@ -310,8 +312,10 @@ private fun PhotoGridItem(
                 Image(
                     bitmap = bitmap!!.asImageBitmap(),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    modifier = Modifier.fillMaxSize().graphicsLayer{
+                        rotationZ = -90f
+                    },
+                    contentScale = ContentScale.Crop,
                 )
             }
             else -> {
@@ -361,7 +365,7 @@ private fun PhotoGridItem(
         }
         
         // Analysis result indicator
-        if (photoData.analysisResult != null && !isSelectionMode) {
+        if (photoData.analysisResults != null && !isSelectionMode) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -468,7 +472,7 @@ fun ClearAllConfirmDialog(
 fun PhotoGalleryScreenPreview() {
     val samplePhotos = listOf(
         PhotoData("1", "path1", System.currentTimeMillis(), 1000, 1000, 1024 * 100, 100),
-        PhotoData("2", "path2", System.currentTimeMillis(), 1000, 1000, 1024 * 200, 150, "Analysis result"),
+        PhotoData("2", "path2", System.currentTimeMillis(), 1000, 1000, 1024 * 200, 150, listOf("Analysis result")),
         PhotoData("3", "path3", System.currentTimeMillis() - 86400000, 1000, 1000, 1024 * 300, 200)
     )
     val groupedPhotos = mapOf(

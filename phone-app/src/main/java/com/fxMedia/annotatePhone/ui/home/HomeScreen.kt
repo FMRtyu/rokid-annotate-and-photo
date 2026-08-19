@@ -12,6 +12,9 @@
     import androidx.compose.material.icons.filled.*
     import androidx.compose.material3.*
     import androidx.compose.runtime.*
+    import androidx.compose.animation.core.*
+    import kotlinx.coroutines.delay
+    import androidx.compose.ui.graphics.graphicsLayer
     import androidx.compose.ui.Alignment
     import androidx.compose.ui.Modifier
     import androidx.compose.ui.draw.clip
@@ -91,6 +94,15 @@
         modifier: Modifier = Modifier
     ) {
         val lifecycleOwner = LocalLifecycleOwner.current
+        var isBlinking by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            PhoneViewModel.newTranscriptEvent.collect {
+                isBlinking = true
+                delay(2000) // Efek kedip selama 2 detik
+                isBlinking = false
+            }
+        }
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
@@ -210,7 +222,8 @@
                     onNext = onNextTranscript,
                     onPrevious = onPreviousTranscript,
                     currentIndex = uiState.currentTranscriptIndex,
-                    totalCount = transcripts.size
+                    totalCount = transcripts.size,
+                    isBlinking = isBlinking
                 )
 
             }
@@ -659,7 +672,7 @@
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(110.dp), // Sesuaikan tinggi agar proporsional dengan gambar
+                .height(110.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 1. Garis Vertikal Kiri
@@ -951,7 +964,8 @@
         onNext: () -> Unit = {},
         onPrevious: () -> Unit = {},
         currentIndex: Int = 0,
-        totalCount: Int = 1
+        totalCount: Int = 1,
+        isBlinking: Boolean = false
     ) {
         // Calculate whether buttons should be enabled
         val canGoPrevious = currentIndex > 0
@@ -1041,13 +1055,30 @@
                         .padding(top = 35.dp, start = 16.dp, end = 16.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "blink")
+                    val alpha by if (isBlinking) {
+                        infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 0.4f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(400),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "alpha"
+                        )
+                    } else {
+                        remember { mutableStateOf(1f) }
+                    }
+
                     Surface(
                         color = Color.Black.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(0.dp),
-                        modifier = Modifier.fillMaxWidth(0.9f),
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .graphicsLayer { this.alpha = alpha }, // Efek blinking
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            Color.White.copy(alpha = 0.2f)
+                            if (isBlinking) Color.Green.copy(alpha = alpha) else Color.White.copy(alpha = 0.2f)
                         )
                     ) {
                         Row(

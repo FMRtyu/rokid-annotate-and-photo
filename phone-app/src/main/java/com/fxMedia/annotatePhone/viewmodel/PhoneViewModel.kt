@@ -119,32 +119,14 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Menyimpan daftar transkrip ke dalam satu file JSON (Maksimal 5).
-     */
-    private fun saveTranscripts() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                val file = File(context.filesDir, "transcripts.json")
-                val transcripts = uiState.value.transcripts
-
-                // Simpan seluruh list (yang sudah di-limit 5 di updateTranscript) ke satu file
-                val json = Gson().toJson(transcripts)
-                file.writeText(json)
-                Log.d(TAG, "Transcripts saved to: ${file.absolutePath}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to save transcripts", e)
-            }
-        }
-    }
 
     fun clearTranscriptHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                // 1. Hapus file gabungan
-                val file = File(context.filesDir, "transcripts.json")
+                // 1. Hapus file gabungan transcripts_db.json di folder glasses_photos
+                val photoDir = File(context.filesDir, "glasses_photos")
+                val file = File(photoDir, "transcripts_db.json")
                 if (file.exists()) file.delete()
 
                 // 2. Bersihkan folder lama (transcripts/) dari sampah file sebelumnya (opsional)
@@ -215,11 +197,15 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
         // Listen to latest photo path for display
         viewModelScope.launch {
             ServiceBridge.latestPhotoPathFlow.collect { path ->
-                Log.d(TAG, "New photo received, clearing old transcripts: $path")
+                Log.d(TAG, "New photo received, updating ID and clearing old transcripts: $path")
+                
+                // Paksa repository refresh agar data foto baru masuk ke history flow
+                photoRepository.refresh()
+                
                 _uiState.update {
                     it.copy(
                         latestPhotoPath = path,
-                        transcripts = emptyList(), // BERSIHKAN TRANSKRIP FOTO LAMA
+                        transcripts = emptyList(),
                         currentTranscriptIndex = 0
                     )
                 }
@@ -259,46 +245,31 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             latestPhotoPath = photo.filePath,
-                            transcripts = photo.analysisResults, // LOAD HANYA MILIK FOTO B
+                            transcripts = photo.analysisResults, // LOAD HANYA MILIK FOTO INI
                             currentTranscriptIndex = if (photo.filePath != it.latestPhotoPath) 0 else it.currentTranscriptIndex
                         )
                     }
                 }
             }
         }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                val file = File(context.filesDir, "transcripts.json")
-                if (file.exists()) {
-                    val json = file.readText()
-                    val type = object : TypeToken<List<String>>() {}.type
-                    val savedList: List<String> = Gson().fromJson(json, type)
-                    _uiState.update { it.copy(transcripts = savedList) }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load transcripts", e)
-            }
-        }
-
-//        viewModelScope.launch {
-//            newTranscriptEvent.collect {
-//                saveTranscripts() // Simpan seluruh list terbaru
-//            }
-//        }
 
         viewModelScope.launch {
             newTranscriptEvent.collect { transcript ->
-                val latestPath = uiState.value.latestPhotoPath
-                if (latestPath != null) {
-                    // Cari objek PhotoData yang cocok dengan path foto saat ini di history
-                    val photoData = photoRepository.photoHistory.value.find { it.filePath == latestPath }
+                // Priority 1: Current path from UI (what the user is looking at)
+                var targetPhoto = uiState.value.latestPhotoPath?.let { path ->
+                    photoRepository.photoHistory.value.find { it.filePath == path }
+                }
 
-                    photoData?.let {
-                        Log.d(TAG, "Binding transcript to photo ID: ${it.id}")
-                        // Panggil fungsi rolling per-ID di Repository
-                        photoRepository.saveAnalysisResult(it, transcript)
-                    }
+                // Priority 2: Fallback to the newest photo in history if UI state isn't updated yet
+                if (targetPhoto == null) {
+                    targetPhoto = photoRepository.photoHistory.value.firstOrNull()
+                }
+
+                if (targetPhoto != null) {
+                    Log.d(TAG, "Binding transcript to photo ID: ${targetPhoto.id}")
+                    photoRepository.saveAnalysisResult(targetPhoto, transcript)
+                } else {
+                    Log.w(TAG, "No photo available to bind transcript: $transcript")
                 }
             }
         }

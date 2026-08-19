@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.RokidGlasses" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:colorBackground">#FFFFFF</item>
+        <item name="android:windowSplashScreenBackground">#FFFFFF</item>
+    </style>
+</resources>

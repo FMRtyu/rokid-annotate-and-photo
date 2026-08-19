@@ -328,6 +328,11 @@ class PhotoRepository(
             val dbFile = File(photoDir, TRANSCRIPTS_FILE)
             val transcriptMap = mutableMapOf<String, MutableList<Pair<Long, String>>>()
 
+            if (!dbFile.exists()) {
+                dbFile.writeText("[]")
+                Log.d(TAG, "$TRANSCRIPTS_FILE not found, creating new empty file")
+            }
+
             if (dbFile.exists()) {
                 val listType = object : TypeToken<List<Map<String, Any>>>() {}.type
                 val list: List<Map<String, Any>> = Gson().fromJson(dbFile.readText(), listType)

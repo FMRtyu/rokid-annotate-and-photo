@@ -36,8 +36,8 @@ android {
         applicationId = "com.fxMedia.annotatePhone"
         minSdk = 28
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.0.15"
+        versionCode = 19
+        versionName = "0.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

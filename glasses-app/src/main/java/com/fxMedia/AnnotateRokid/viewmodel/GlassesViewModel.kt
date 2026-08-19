@@ -45,6 +45,9 @@ data class GlassesUIState(
     val bluetoothState: BluetoothClientState = BluetoothClientState.DISCONNECTED,
     val connectedDeviceName: String? = null,
     val availableDevices: List<BluetoothDevice> = emptyList(),
+    val selectedDeviceIndex: Int = 0,
+    val lastConnectedAddress: String? = null,
+    val showDeviceSelector: Boolean = false,
     val cxrConnectedPhoneName: String? = null,
 
     // Display state
@@ -75,6 +78,7 @@ class GlassesViewModel(
         private const val TAG = "GlassesViewModel"
         private const val MAX_CHARS_PER_PAGE = 120
         private const val MAX_LINES_PER_PAGE = 4
+        private const val PREF_LAST_DEVICE_ADDRESS = "last_device_address"
     }
 
     // ── Screen state (camera annotation) ─────────────────────────────────────
@@ -114,6 +118,8 @@ class GlassesViewModel(
     private var cxrServiceManager: CxrServiceManager? = null
     private var photoTransferProtocol: PhotoTransferProtocol? = null
 
+    private val sharedPrefs = context.getSharedPreferences("bluetooth_prefs", Context.MODE_PRIVATE)
+
     private val audioBuffer = ByteArrayOutputStream()
 
     // Live-mode
@@ -123,6 +129,9 @@ class GlassesViewModel(
     private val videoFrameQuality = 50
 
     init {
+        val savedAddress = sharedPrefs.getString(PREF_LAST_DEVICE_ADDRESS, null)
+        _uiState.update { it.copy(lastConnectedAddress = savedAddress) }
+
         initializeBluetooth()
         initializeCamera()
         initializeCxrService()
@@ -169,6 +178,15 @@ class GlassesViewModel(
      *   Capturing  → no-op (busy)
      */
     fun onPrimaryTap() {
+        if (!_uiState.value.isConnected) {
+            if (!_uiState.value.showDeviceSelector) {
+                refreshPairedDevices()
+                _uiState.update { it.copy(showDeviceSelector = true) }
+            } else {
+                onConfirmDevice()
+            }
+            return
+        }
         when (_appScreen.value) {
             is CameraAppScreen.Prompt -> retakePhoto()
             is CameraAppScreen.Review -> confirmReviewSelection()
@@ -178,12 +196,28 @@ class GlassesViewModel(
     }
 
     fun onNavigateUp() {
+        if (!_uiState.value.isConnected) {
+            _uiState.update { state ->
+                if (state.availableDevices.isEmpty()) return@update state
+                val nextIndex = (state.selectedDeviceIndex - 1).coerceAtLeast(0)
+                state.copy(selectedDeviceIndex = nextIndex)
+            }
+            return
+        }
         if (_appScreen.value is CameraAppScreen.Review || _appScreen.value is CameraAppScreen.Prompt) {
             selectReviewOption(ReviewSelection.RETAKE)
         }
     }
 
     fun onNavigateDown() {
+        if (!_uiState.value.isConnected) {
+            _uiState.update { state ->
+                if (state.availableDevices.isEmpty()) return@update state
+                val nextIndex = (state.selectedDeviceIndex + 1).coerceAtMost(state.availableDevices.size - 1)
+                state.copy(selectedDeviceIndex = nextIndex)
+            }
+            return
+        }
         if (_appScreen.value is CameraAppScreen.Review || _appScreen.value is CameraAppScreen.Prompt) {
             selectReviewOption(ReviewSelection.ANNOTATE)
         }
@@ -903,17 +937,35 @@ class GlassesViewModel(
     // ════════════════════════════════════════════════════════════════════════
 
     fun refreshPairedDevices() {
+        val lastAddress = _uiState.value.lastConnectedAddress
         val devices: List<BluetoothDevice> = if (
             ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
             == PackageManager.PERMISSION_GRANTED
         ) {
-            bluetoothClient.getPairedDevices()
+            val paired = bluetoothClient.getPairedDevices()
+            // Sort: Last connected address at the top
+            paired.sortedByDescending { it.address == lastAddress }
         } else {
             Log.w(TAG, "BLUETOOTH_CONNECT permission not granted — cannot list paired devices")
             emptyList()
         }
-        _uiState.update { it.copy(availableDevices = devices) }
+        _uiState.update { it.copy(
+            availableDevices = devices,
+            selectedDeviceIndex = 0 // Reset selection to top
+        ) }
         Log.d(TAG, "Found ${devices.size} paired devices")
+    }
+
+    fun onConfirmDevice() {
+        val state = _uiState.value
+        if (state.selectedDeviceIndex in state.availableDevices.indices) {
+            connectToDevice(state.availableDevices[state.selectedDeviceIndex])
+            _uiState.update { it.copy(showDeviceSelector = false) }
+        }
+    }
+
+    fun dismissDeviceSelector() {
+        _uiState.update { it.copy(showDeviceSelector = false) }
     }
 
     fun connectToDevice(device: BluetoothDevice) {
@@ -923,7 +975,15 @@ class GlassesViewModel(
             Log.w(TAG, "Cannot connect — BLUETOOTH_CONNECT not granted")
             return
         }
-        Log.d(TAG, "Connecting to: ${device.name}")
+        Log.d(TAG, "Connecting to: ${device.name} (${device.address})")
+
+        // Save last connected address
+        sharedPrefs.edit().putString(PREF_LAST_DEVICE_ADDRESS, device.address).apply()
+        _uiState.update { it.copy(
+            lastConnectedAddress = device.address,
+            showDeviceSelector = false
+        ) }
+
         bluetoothClient.connect(device)
     }
 

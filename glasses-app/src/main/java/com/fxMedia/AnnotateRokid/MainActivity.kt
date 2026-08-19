@@ -19,7 +19,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -250,8 +255,6 @@ fun GlassesMainWithCameraScreen(viewModel: GlassesViewModel) {
     val annotationText by viewModel.liveAnnotation.collectAsState()
     val reviewSelection by viewModel.reviewSelection.collectAsState()
 
-    var showDeviceSelector by remember { mutableStateOf(false) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -263,15 +266,13 @@ fun GlassesMainWithCameraScreen(viewModel: GlassesViewModel) {
                 ConnectionScreen(
                     uiState = uiState,
                     onScreenTap = {
-                        viewModel.refreshPairedDevices()
-                        showDeviceSelector = true
+                        viewModel.onPrimaryTap()
                     },
                     onDeviceSelected = { device ->
                         viewModel.connectToDevice(device)
-                        showDeviceSelector = false
                     },
-                    showDeviceSelector = showDeviceSelector,
-                    onDismissDeviceSelector = { showDeviceSelector = false }
+                    showDeviceSelector = uiState.showDeviceSelector,
+                    onDismissDeviceSelector = { viewModel.dismissDeviceSelector() }
                 )
             }
             else -> {
@@ -363,6 +364,8 @@ fun ConnectionScreen(
         if (showDeviceSelector) {
             DeviceSelectorDialog(
                 devices = uiState.availableDevices,
+                selectedDeviceIndex = uiState.selectedDeviceIndex,
+                lastConnectedAddress = uiState.lastConnectedAddress,
                 cxrConnectedPhoneName = uiState.cxrConnectedPhoneName,
                 onDeviceSelected = onDeviceSelected,
                 onDismiss = onDismissDeviceSelector
@@ -564,18 +567,17 @@ fun HintText(
 @Composable
 fun DeviceSelectorDialog(
     devices: List<BluetoothDevice>,
+    selectedDeviceIndex: Int,
+    lastConnectedAddress: String? = null,
     cxrConnectedPhoneName: String? = null,
     onDeviceSelected: (BluetoothDevice) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sortedDevices = remember(devices, cxrConnectedPhoneName) {
-        if (cxrConnectedPhoneName != null) {
-            devices.sortedByDescending {
-                @Suppress("MissingPermission")
-                it.name?.equals(cxrConnectedPhoneName, ignoreCase = true) == true
-            }
-        } else {
-            devices
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(selectedDeviceIndex) {
+        if (devices.isNotEmpty()) {
+            listState.animateScrollToItem(selectedDeviceIndex)
         }
     }
 
@@ -591,25 +593,42 @@ fun DeviceSelectorDialog(
             )
         },
         text = {
-            if (sortedDevices.isEmpty()) {
+            if (devices.isEmpty()) {
                 Text(
                     text = "No paired devices\nPair a device in Bluetooth settings",
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    sortedDevices.forEach { device ->
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.heightIn(max = 300.dp)
+                ) {
+                    itemsIndexed(devices) { index: Int, device: BluetoothDevice ->
                         @Suppress("MissingPermission")
                         val deviceName = device.name ?: "Unknown device"
+                        @Suppress("MissingPermission")
+                        val deviceAddress = device.address
+                        val isSelected = index == selectedDeviceIndex
+                        val isLastConnected = deviceAddress == lastConnectedAddress
                         val isRecommended = cxrConnectedPhoneName != null &&
                                 deviceName.equals(cxrConnectedPhoneName, ignoreCase = true)
 
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onDeviceSelected(device) },
-                            color = if (isRecommended) Color(0xFF1E3A5F) else Color(0xFF2A2A2A),
+                                .clickable { onDeviceSelected(device) }
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.border(2.dp, Color.White, MaterialTheme.shapes.small)
+                                    } else Modifier
+                                ),
+                            color = when {
+                                isSelected -> Color(0xFF3D3D3D)
+                                isRecommended -> Color(0xFF1E3A5F)
+                                else -> Color(0xFF2A2A2A)
+                            },
                             shape = MaterialTheme.shapes.small
                         ) {
                             Row(
@@ -619,13 +638,24 @@ fun DeviceSelectorDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = deviceName, color = Color.White, fontSize = 16.sp)
-                                if (isRecommended) {
-                                    Text(
-                                        text = "★ Recommended",
-                                        color = Color(0xFF64B5F6),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = deviceName, color = Color.White, fontSize = 16.sp)
+                                    if (isRecommended) {
+                                        Text(
+                                            text = "Recommended",
+                                            color = Color(0xFF64B5F6),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                
+                                if (isLastConnected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Last connected",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
